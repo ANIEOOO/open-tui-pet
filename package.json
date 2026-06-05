@@ -1,0 +1,43 @@
+{
+  "name": "open-tui-pet",
+  "version": "0.1.4",
+  "type": "module",
+  "license": "MIT",
+  "description": "Desktop pet plugin for OpenCode CLI - animated companion that reacts to coding activity",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md"
+  ],
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "typecheck": "tsc --noEmit",
+    "publish:dry": "bash scripts/publish.sh --dry-run",
+    "publish:release": "bash scripts/publish.sh"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^0.5.0",
+    "electron": "^41.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.6.2"
+  },
+  "keywords": [
+    "deveco",
+    "opencode",
+    "plugin",
+    "desktop-pet",
+    "electron"
+  ]
+}

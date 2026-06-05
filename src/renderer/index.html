@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevEco Pet</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="pet-container" class="pet-container">
+    <div id="permission-popup" class="permission-popup">
+      <div class="permission-header">
+        <span id="permission-title" class="permission-title">Allow edit?</span>
+        <span id="permission-subtitle" class="permission-subtitle"></span>
+      </div>
+      <div class="permission-body">
+        <p id="permission-detail"></p>
+      </div>
+      <div class="permission-actions">
+        <button id="permission-deny" class="permission-btn permission-btn-deny">Reject</button>
+        <button id="permission-allow-always" class="permission-btn permission-btn-always">Always</button>
+        <button id="permission-allow" class="permission-btn permission-btn-allow">Allow</button>
+      </div>
+      <div class="permission-tail"></div>
+    </div>
+    <div class="speech-bubble" id="speech-bubble">
+      <span class="bubble-text" id="bubble-text"></span>
+    </div>
+    <div id="pet-sprite" class="pet-sprite"></div>
+    <div id="no-pet-message" class="no-pet-message" style="display:none">
+      <p>No pet installed</p>
+      <p class="hint">Run: npx petdex install boba</p>
+    </div>
+  </div>
+  <script type="module" src="pet.js"></script>
+</body>
+</html>
