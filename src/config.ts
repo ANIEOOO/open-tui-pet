@@ -8,7 +8,9 @@ export function readConfig(): PetConfig {
     if (existsSync(CONFIG_FILE)) {
       return JSON.parse(readFileSync(CONFIG_FILE, "utf-8"))
     }
-  } catch {}
+  } catch {
+    log("[config] Corrupted config, using defaults")
+  }
   return { selectedPet: "" }
 }
 

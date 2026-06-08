@@ -8,6 +8,8 @@ export interface PetInfo {
 /** Persisted user config */
 export interface PetConfig {
   selectedPet: string
+  windowX?: number
+  windowY?: number
 }
 
 /** Pet data sent to renderer via IPC */
