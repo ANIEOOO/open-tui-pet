@@ -8,6 +8,11 @@ const DOUBLE_CLICK_MS = 300
 const LONG_PRESS_MS = 600
 const MOVE_THRESHOLD_PX = 5
 const CLICK_RETURN_MS = 3000
+const IDLE_TIMEOUT_MS = 10000
+const ROAMING_SPEED_PX = 50
+const ROAMING_MIN_MS = 3000
+const ROAMING_MAX_MS = 8000
+const EDGE_PAUSE_MS = 1000
 
 const CUTE_MESSAGES = ['Hi! 👋', '别戳我~', '摸摸头~', 'Hello!', '嘿嘿~']
 const EXCITED_MESSAGES = ['Woo!', '太开心!', 'Yay!', '蹦蹦跳~', 'Yeah!']
@@ -57,6 +62,143 @@ function init() {
 
   sleepChecker.start()
 
+  // ── Roaming Engine ──
+  let idleTimer = null
+  let roamingActive = false
+  let roamingRAF = null
+  let roamingDirection = 1
+  let lastFrameTime = 0
+  let edgePauseTimer = null
+  let walkDurationTimer = null
+
+  function startIdleTimer() {
+    if (idleTimer) clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => {
+      if (stateMachine.getCurrentState() === 'idle') {
+        startRoaming()
+      }
+    }, IDLE_TIMEOUT_MS)
+  }
+
+  function cleanupRoaming() {
+    roamingActive = false
+    if (roamingRAF) {
+      cancelAnimationFrame(roamingRAF)
+      roamingRAF = null
+    }
+    if (edgePauseTimer) {
+      clearTimeout(edgePauseTimer)
+      edgePauseTimer = null
+    }
+    if (walkDurationTimer) {
+      clearTimeout(walkDurationTimer)
+      walkDurationTimer = null
+    }
+  }
+
+  function stopRoaming() {
+    cleanupRoaming()
+    petSprite.style.left = '0px'
+    player.play('idle')
+  }
+
+  function startRoaming() {
+    if (window.innerWidth < petSprite.offsetWidth * 2) return
+
+    roamingActive = true
+    roamingDirection = Math.random() < 0.5 ? -1 : 1
+
+    const anim = roamingDirection === 1 ? 'running-right' : 'running-left'
+    player.play(anim)
+
+    lastFrameTime = performance.now()
+
+    const walkDuration = ROAMING_MIN_MS + Math.random() * (ROAMING_MAX_MS - ROAMING_MIN_MS)
+    walkDurationTimer = setTimeout(() => {
+      stopRoaming()
+      startIdleTimer()
+    }, walkDuration)
+
+    function moveLoop(currentTime) {
+      if (!roamingActive) return
+
+      const deltaTime = currentTime - lastFrameTime
+      lastFrameTime = currentTime
+
+      const currentLeft = parseFloat(petSprite.style.left) || 0
+      const maxLeft = window.innerWidth - petSprite.offsetWidth
+      let newLeft = currentLeft + (roamingDirection * ROAMING_SPEED_PX * deltaTime / 1000)
+
+      if (newLeft <= 0 || newLeft >= maxLeft) {
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft))
+        petSprite.style.left = newLeft + 'px'
+
+        roamingActive = false
+        cancelAnimationFrame(roamingRAF)
+        roamingRAF = null
+
+        edgePauseTimer = setTimeout(() => {
+          roamingDirection *= -1
+          const anim = roamingDirection === 1 ? 'running-right' : 'running-left'
+          player.play(anim)
+          roamingActive = true
+          lastFrameTime = performance.now()
+          roamingRAF = requestAnimationFrame(moveLoop)
+        }, EDGE_PAUSE_MS)
+
+        return
+      }
+
+      petSprite.style.left = newLeft + 'px'
+      roamingRAF = requestAnimationFrame(moveLoop)
+    }
+
+    roamingRAF = requestAnimationFrame(moveLoop)
+  }
+
+  const originalSetState = stateMachine.setState
+  stateMachine.setState = function(newState) {
+    originalSetState.call(this, newState)
+    if (stateMachine.getCurrentState() === 'idle') {
+      startIdleTimer()
+    } else {
+      if (idleTimer) {
+        clearTimeout(idleTimer)
+        idleTimer = null
+      }
+      cleanupRoaming()
+    }
+  }
+
+  startIdleTimer()
+
+  // ── Interruption Handling ──
+  window.addEventListener('blur', () => {
+    cleanupRoaming()
+    if (idleTimer) {
+      clearTimeout(idleTimer)
+      idleTimer = null
+    }
+  })
+
+  window.addEventListener('resize', () => {
+    cleanupRoaming()
+    petSprite.style.left = '0px'
+    startIdleTimer()
+  })
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      cleanupRoaming()
+      if (idleTimer) {
+        clearTimeout(idleTimer)
+        idleTimer = null
+      }
+    } else if (stateMachine.getCurrentState() === 'idle') {
+      startIdleTimer()
+    }
+  })
+
   let tapTimer = null
   let longPressTimer = null
   let longPressFired = false
@@ -67,6 +209,8 @@ function init() {
   function triggerTapAction(anim, messages) {
     const current = stateMachine.getCurrentState()
     if (current === 'waving' || current === 'failed') return
+    cleanupRoaming()
+    petSprite.style.left = '0px'
     player.play(anim)
     speechBubble.showText(randomMessage(messages))
     if (returnTimer) clearTimeout(returnTimer)
