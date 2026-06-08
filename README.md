@@ -96,6 +96,30 @@ Use a file path relative to the config file, or an absolute path:
 }
 ```
 
+### Electron mirror (China users)
+
+Electron binary is downloaded from GitHub Releases by default. If you're in China and experiencing slow downloads or timeouts, configure a mirror:
+
+**Option 1: `.npmrc` (recommended)**
+
+```bash
+echo 'electron_mirror=https://npmmirror.com/mirrors/electron/' >> ~/.npmrc
+```
+
+**Option 2: Environment variable**
+
+```bash
+export ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+```
+
+Then install:
+
+```bash
+npm install open-tui-pet
+```
+
+> The plugin also auto-detects your npm registry. If you're using a Chinese mirror registry (e.g. `registry.npmmirror.com`), the Electron mirror will be set automatically during fallback downloads.
+
 ### From source
 
 ```bash
