@@ -106,6 +106,7 @@ const server: Plugin = async (input: PluginInput) => {
       PET_ALL_PETS: JSON.stringify(allPets),
       PET_SELECTED: selectedSlug,
       PET_CONFIG_FILE: CONFIG_FILE,
+      PET_CWD: process.cwd(),
     },
     detached: true,
     stdio: ["ignore", "pipe", "pipe", "ipc"],

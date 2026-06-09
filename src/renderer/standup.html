@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Standup Summary</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      padding: 16px;
+      padding-bottom: 64px;
+      max-width: 100%;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    .header {
+      margin-bottom: 12px;
+    }
+
+    .header-date {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .header-project {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .stats-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 16px;
+    }
+
+    .stats-bar .stat-add {
+      color: #16a34a;
+      font-weight: 600;
+    }
+
+    .stats-bar .stat-del {
+      color: #dc2626;
+      font-weight: 600;
+    }
+
+    .truncation-notice {
+      padding: 6px 12px;
+      background: #fef3c7;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #92400e;
+      margin-bottom: 12px;
+    }
+
+    .category {
+      margin-bottom: 16px;
+    }
+
+    .category-heading {
+      font-size: 14px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .commit {
+      padding: 6px 0;
+    }
+
+    .commit-msg {
+      font-size: 12px;
+      color: #333;
+      word-break: break-word;
+    }
+
+    .commit-hash {
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      color: #9ca3af;
+      margin-left: 4px;
+    }
+
+    .commit-files {
+      margin-top: 3px;
+      padding-left: 12px;
+    }
+
+    .commit-file {
+      font-size: 10px;
+      font-family: ui-monospace, monospace;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+
+    .file-add {
+      color: #16a34a;
+    }
+
+    .file-del {
+      color: #dc2626;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      font-size: 16px;
+      color: #9ca3af;
+      text-align: center;
+    }
+
+    .error-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      font-size: 14px;
+      color: #dc2626;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .copy-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 16px;
+      background: #f8f9fa;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .copy-btn {
+      display: block;
+      width: 100%;
+      padding: 8px 0;
+      border: none;
+      border-radius: 8px;
+      background: #3b82f6;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      background: #2563eb;
+    }
+
+    .copy-btn:active {
+      background: #1d4ed8;
+    }
+
+    .copy-btn.copied {
+      background: #16a34a;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div class="copy-bar">
+    <button class="copy-btn" id="copy-btn">Copy Summary</button>
+  </div>
+
+  <script>
+    const DATA = {{DATA_PLACEHOLDER}};
+
+    function escapeHtml(str) {
+      var el = document.createElement('span');
+      el.textContent = str;
+      return el.innerHTML;
+    }
+
+    function truncate(str, len) {
+      if (!str) return '';
+      return str.length > len ? str.substring(0, len) + '...' : str;
+    }
+
+    function formatDate(dateStr) {
+      try {
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      } catch (e) {
+        return dateStr;
+      }
+    }
+
+    function shortHash(hash) {
+      if (!hash) return '';
+      return hash.substring(0, 7);
+    }
+
+    function computeStats(commits) {
+      var totalFiles = 0;
+      var totalAdd = 0;
+      var totalDel = 0;
+      var fileSet = {};
+      for (var i = 0; i < commits.length; i++) {
+        var files = commits[i].files || [];
+        for (var j = 0; j < files.length; j++) {
+          var f = files[j];
+          if (!fileSet[f.path]) {
+            fileSet[f.path] = true;
+            totalFiles++;
+          }
+          totalAdd += f.additions || 0;
+          totalDel += f.deletions || 0;
+        }
+      }
+      return { commits: commits.length, files: totalFiles, additions: totalAdd, deletions: totalDel };
+    }
+
+    function getCategories(data) {
+      if (data.categories && data.categories.length > 0) return data.categories;
+      var commits = data.commits || [];
+      if (commits.length === 0) return [];
+      return [{ name: 'All', commits: commits }];
+    }
+
+    function buildPlainText(data) {
+      var commits = data.commits || [];
+      var stats = computeStats(commits);
+      var categories = getCategories(data);
+      var lines = [];
+      lines.push('## Daily Standup - ' + formatDate(data.date));
+      lines.push('');
+
+      for (var c = 0; c < categories.length; c++) {
+        var cat = categories[c];
+        lines.push('### ' + cat.name);
+        var items = cat.commits || [];
+        for (var i = 0; i < items.length; i++) {
+          var msg = truncate(items[i].message || '', 80);
+          var hash = shortHash(items[i].hash);
+          lines.push('- ' + msg + ' (' + hash + ')');
+          var files = items[i].files || [];
+          if (files.length > 0) {
+            var parts = [];
+            for (var j = 0; j < files.length; j++) {
+              var f = files[j];
+              parts.push(f.path + ' (+' + (f.additions || 0) + '/-' + (f.deletions || 0) + ')');
+            }
+            lines.push('  Files: ' + parts.join(', '));
+          }
+        }
+        lines.push('');
+      }
+
+      lines.push('Total: ' + stats.commits + ' commits, ' + stats.files + ' files changed, +' + stats.additions + '/-' + stats.deletions);
+      return lines.join('\n');
+    }
+
+    function render() {
+      var app = document.getElementById('app');
+
+      // Set window title
+      var dateStr = DATA.date ? formatDate(DATA.date) : 'Unknown';
+      document.title = 'Standup Summary - ' + dateStr;
+
+      // Error state
+      if (DATA.error) {
+        app.innerHTML = '<div class="error-state">' + escapeHtml(DATA.error) + '</div>';
+        document.getElementById('copy-btn').style.display = 'none';
+        return;
+      }
+
+      var commits = DATA.commits || [];
+
+      // Empty state
+      if (commits.length === 0) {
+        app.innerHTML = '<div class="empty-state">No commits today \uD83D\uDC3E</div>';
+        document.getElementById('copy-btn').style.display = 'none';
+        return;
+      }
+
+      var stats = computeStats(commits);
+      var categories = getCategories(DATA);
+      var html = '';
+
+      // Header
+      var projectName = DATA.project || 'Project';
+      html += '<div class="header">';
+      html += '<div class="header-date">' + escapeHtml(dateStr) + '</div>';
+      html += '<div class="header-project">' + escapeHtml(projectName) + '</div>';
+      html += '</div>';
+
+      // Stats bar
+      html += '<div class="stats-bar">';
+      html += '<span>' + stats.commits + ' commit' + (stats.commits !== 1 ? 's' : '') + '</span>';
+      html += '<span>&middot;</span>';
+      html += '<span>' + stats.files + ' file' + (stats.files !== 1 ? 's' : '') + '</span>';
+      html += '<span>&middot;</span>';
+      html += '<span class="stat-add">+' + stats.additions + '</span>';
+      html += '<span class="stat-del">-' + stats.deletions + '</span>';
+      html += '</div>';
+
+      // Truncation notice
+      if (DATA.truncated && DATA.totalCommits) {
+        var remaining = DATA.totalCommits - commits.length;
+        html += '<div class="truncation-notice">Showing first ' + commits.length + ' commits (and ' + remaining + ' more)</div>';
+      }
+
+      // Categories
+      for (var c = 0; c < categories.length; c++) {
+        var cat = categories[c];
+        html += '<div class="category">';
+        html += '<div class="category-heading">' + escapeHtml(cat.name) + '</div>';
+        var items = cat.commits || [];
+        for (var i = 0; i < items.length; i++) {
+          var commit = items[i];
+          var msg = truncate(commit.message || '', 80);
+          var hash = shortHash(commit.hash);
+          html += '<div class="commit">';
+          html += '<span class="commit-msg">' + escapeHtml(msg) + '</span>';
+          html += '<span class="commit-hash">' + escapeHtml(hash) + '</span>';
+          var files = commit.files || [];
+          if (files.length > 0) {
+            html += '<div class="commit-files">';
+            for (var j = 0; j < files.length; j++) {
+              var f = files[j];
+              html += '<div class="commit-file">';
+              html += escapeHtml(f.path || '');
+              html += ' <span class="file-add">+' + (f.additions || 0) + '</span>';
+              html += ' <span class="file-del">-' + (f.deletions || 0) + '</span>';
+              html += '</div>';
+            }
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+
+      app.innerHTML = html;
+    }
+
+    // Copy button
+    document.getElementById('copy-btn').addEventListener('click', function() {
+      var btn = this;
+      var text = buildPlainText(DATA);
+      navigator.clipboard.writeText(text).then(function() {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function() {
+          btn.textContent = 'Copy Summary';
+          btn.classList.remove('copied');
+        }, 2000);
+      }).catch(function() {
+        btn.textContent = 'Copy failed';
+        setTimeout(function() {
+          btn.textContent = 'Copy Summary';
+        }, 2000);
+      });
+    });
+
+    render();
+  </script>
+</body>
+</html>
