@@ -11,3 +11,4 @@ dist/
 .deveco/package.json
 .deveco/package-lock.json
 .deveco/.gitignore
+.sisyphus/
